@@ -1,0 +1,14 @@
+# Go
+/bin/
+/vendor/
+*.exe
+
+# Local DB
+news.db
+*.db
+
+# Env files
+.env
+
+# OS
+.DS_Store
