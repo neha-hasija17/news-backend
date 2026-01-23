@@ -1,7 +1,6 @@
 package services
 
 import (
-	"fmt"
 	"time"
 
 	"news-backend/config"
@@ -26,12 +25,11 @@ type FetchResult struct {
 
 // FetchParams contains parameters for fetching articles
 type FetchParams struct {
-	Intent        string
-	Entities      map[string]string
-	NamedEntities *models.NamedEntities
-	Lat           float64
-	Lon           float64
-	Radius        float64
+	Intent   string
+	Entities models.Entities
+	Lat      float64
+	Lon      float64
+	Radius   float64
 }
 
 // NewNewsService creates a new news service instance
@@ -44,29 +42,13 @@ func NewNewsService(cfg *config.Config, llmService *LLMService) *NewsService {
 }
 
 // FetchArticles retrieves articles based on intent and entities
-func (s *NewsService) FetchArticles(intent string, entities map[string]string, lat, lon, radius float64) ([]models.Article, error) {
+func (s *NewsService) FetchArticles(intent string, entities models.Entities, lat, lon, radius float64) ([]models.Article, error) {
 	result, err := s.FetchArticlesWithMetadata(FetchParams{
 		Intent:   intent,
 		Entities: entities,
 		Lat:      lat,
 		Lon:      lon,
 		Radius:   radius,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return result.Articles, nil
-}
-
-// FetchArticlesWithNamedEntities retrieves articles with named entity support
-func (s *NewsService) FetchArticlesWithNamedEntities(intent string, entities map[string]string, namedEntities *models.NamedEntities, lat, lon, radius float64) ([]models.Article, error) {
-	result, err := s.FetchArticlesWithMetadata(FetchParams{
-		Intent:        intent,
-		Entities:      entities,
-		NamedEntities: namedEntities,
-		Lat:           lat,
-		Lon:           lon,
-		Radius:        radius,
 	})
 	if err != nil {
 		return nil, err
@@ -140,10 +122,11 @@ func (s *NewsService) applySorting(articles []models.Article, st sortType, param
 	case sortByScoreDesc:
 		utils.SortArticles(articles, utils.SortScoreDesc)
 	case sortByDistance:
-		utils.SortByDistanceFrom[models.Article](articles, params.Lat, params.Lon)
+		utils.SortByDistanceFrom(articles, params.Lat, params.Lon)
 	case sortBySearchRelevance:
 		// Requirement: rank by combination of relevance_score and text matching score
-		utils.SortBySearchRelevance(articles, params.Entities["query"])
+		query, _ := params.Entities["query"].(string)
+		utils.SortBySearchRelevance(articles, query)
 	}
 }
 
@@ -154,60 +137,47 @@ func (s *NewsService) EnrichWithSummaries(articles []models.Article) []models.Ar
 }
 
 // SearchWithIntent performs search with LLM intent parsing
-func (s *NewsService) SearchWithIntent(query string) (*FetchResult, models.IntentResponse, error) {
+func (s *NewsService) SearchWithIntent(query string) (*FetchResult, *models.IntentResponse, error) {
+	// Parse intent and entities using LLM
 	intentResp := s.llmService.ParseIntent(query)
-	entities := map[string]string{"query": query}
 
+	// Fetch articles based on parsed intent
 	result, err := s.FetchArticlesWithMetadata(FetchParams{
-		Intent:        models.IntentSearch,
-		Entities:      entities,
-		NamedEntities: intentResp.NamedEntities,
+		Intent:   intentResp.Intent,
+		Entities: intentResp.Entities,
 	})
 	if err != nil {
-		return nil, models.IntentResponse{}, err
+		return nil, &intentResp, err
 	}
 
+	// Enrich with summaries
 	result.Articles = s.EnrichWithSummaries(result.Articles)
-	return result, intentResp, nil
+
+	return result, &intentResp, nil
 }
 
-// QueryWithIntent handles generic queries with intent parsing
-func (s *NewsService) QueryWithIntent(query string, lat, lon, radius float64) ([]models.Article, models.IntentResponse, error) {
+// QueryWithIntent handles generic queries with intent parsing and location
+func (s *NewsService) QueryWithIntent(query string, lat, lon, radius float64) ([]models.Article, *models.IntentResponse, error) {
+	// Parse intent and entities using LLM
 	intentResp := s.llmService.ParseIntent(query)
 
-	articles, err := s.FetchArticles(
-		intentResp.Intent,
-		intentResp.Entities,
-		lat,
-		lon,
-		radius,
-	)
-	if err != nil {
-		return nil, models.IntentResponse{}, err
+	// Add location context to entities
+	intentResp.Entities["lat"] = lat
+	intentResp.Entities["lon"] = lon
+	if radius > 0 {
+		intentResp.Entities["radius"] = radius
 	}
 
+	// Fetch articles
+	articles, err := s.FetchArticles(intentResp.Intent, intentResp.Entities, lat, lon, radius)
+	if err != nil {
+		return nil, &intentResp, err
+	}
+
+	// Enrich with summaries
 	articles = s.EnrichWithSummaries(articles)
-	return articles, intentResp, nil
-}
 
-// GetArticleByID retrieves a single article by ID
-func (s *NewsService) GetArticleByID(id string) (*models.Article, error) {
-	var article models.Article
-	err := s.db.Where("id = ?", id).First(&article).Error
-	if err != nil {
-		return nil, fmt.Errorf("article not found: %w", err)
-	}
-	return &article, nil
-}
-
-// GetArticleByIDWithSummary retrieves a single article with LLM summary
-func (s *NewsService) GetArticleByIDWithSummary(id string) (*models.Article, error) {
-	article, err := s.GetArticleByID(id)
-	if err != nil {
-		return nil, err
-	}
-	article.LLMSummary = s.llmService.GenerateSummary(article.ID, article.Description)
-	return article, nil
+	return articles, &intentResp, nil
 }
 
 // GetArticleStats returns statistics about the article database

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 
 	"news-backend/models"
@@ -43,6 +42,23 @@ func respondNotFound(c *gin.Context, message string) {
 	respondWithError(c, http.StatusNotFound, "Not found", message)
 }
 
+// respondWithEntities sends a successful response with articles and parsed entities
+func (h *NewsHandler) respondWithEntities(c *gin.Context, result *services.FetchResult, intentResp *models.IntentResponse, query string) {
+	response := gin.H{
+		"articles": articlesToResponses(result.Articles),
+		"metadata": models.NewResponseMetadata(
+			len(result.Articles),
+			result.TotalAvailable,
+			query,
+			nil,
+		),
+		"intent":   intentResp.Intent,
+		"entities": intentResp.Entities,
+	}
+
+	c.JSON(http.StatusOK, response)
+}
+
 // =============================================================================
 // Article Conversion Helpers
 // =============================================================================
@@ -56,40 +72,35 @@ func articlesToResponses(articles []models.Article) []models.ArticleResponse {
 	return responses
 }
 
-// buildNamedEntityFilters creates a filter map from named entities
-func buildNamedEntityFilters(entities *models.NamedEntities) map[string]string {
-	filters := map[string]string{}
-	if entities == nil {
-		return filters
-	}
-	if len(entities.Locations) > 0 {
-		filters["locations"] = fmt.Sprintf("%v", entities.Locations)
-	}
-	if len(entities.People) > 0 {
-		filters["people"] = fmt.Sprintf("%v", entities.People)
-	}
-	if len(entities.Organizations) > 0 {
-		filters["organizations"] = fmt.Sprintf("%v", entities.Organizations)
-	}
-	if len(entities.Events) > 0 {
-		filters["events"] = fmt.Sprintf("%v", entities.Events)
-	}
-	return filters
-}
-
 // =============================================================================
 // Common Handler Patterns
 // =============================================================================
 
+// handleSearchWithIntent is a common helper that parses query with LLM and returns results
+func (h *NewsHandler) handleSearchWithIntent(c *gin.Context) {
+	query := c.Query("query")
+	if query == "" {
+		respondMissingParam(c, "Query parameter")
+		return
+	}
+
+	result, intentResp, err := h.newsService.SearchWithIntent(query)
+	if err != nil {
+		respondInternalError(c, err.Error())
+		return
+	}
+
+	h.respondWithEntities(c, result, intentResp, query)
+}
+
 // FetchOptions contains optional parameters for fetching articles
 type FetchOptions struct {
-	Entities      map[string]string
-	NamedEntities *models.NamedEntities
-	Lat           float64
-	Lon           float64
-	Radius        float64
-	Query         string
-	Filters       map[string]string
+	Entities models.Entities
+	Lat      float64
+	Lon      float64
+	Radius   float64
+	Query    string
+	Filters  map[string]string
 }
 
 // fetchAndRespond is a helper that handles the common pattern of:
@@ -99,12 +110,11 @@ type FetchOptions struct {
 // 4. Send JSON response with metadata
 func (h *NewsHandler) fetchAndRespond(c *gin.Context, intent string, opts FetchOptions) {
 	result, err := h.newsService.FetchArticlesWithMetadata(services.FetchParams{
-		Intent:        intent,
-		Entities:      opts.Entities,
-		NamedEntities: opts.NamedEntities,
-		Lat:           opts.Lat,
-		Lon:           opts.Lon,
-		Radius:        opts.Radius,
+		Intent:   intent,
+		Entities: opts.Entities,
+		Lat:      opts.Lat,
+		Lon:      opts.Lon,
+		Radius:   opts.Radius,
 	})
 	if err != nil {
 		respondWithError(c, http.StatusInternalServerError, "Failed to fetch articles", err.Error())

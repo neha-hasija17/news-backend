@@ -8,28 +8,6 @@ import (
 // Trending Score Utilities
 // =============================================================================
 
-// IsGenericQuery checks if a query is generic (like "latest news")
-func IsGenericQuery(query string) bool {
-	genericQueries := []string{
-		"latest news",
-		"recent news",
-		"today news",
-		"current news",
-		"news",
-		"top news",
-		"breaking news",
-		"news today",
-		"today's news",
-	}
-
-	for _, generic := range genericQueries {
-		if query == generic {
-			return true
-		}
-	}
-	return false
-}
-
 // ComputeTrendingScore calculates trending score based on events
 func ComputeTrendingScore(eventCount int, totalWeight float64, recencyFactor float64) float64 {
 	// Trending score = (event count * average weight * recency factor)

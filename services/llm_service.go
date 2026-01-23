@@ -23,18 +23,19 @@ type LLMService struct {
 // NewLLMService creates a new LLM service instance
 func NewLLMService(cfg *config.Config) *LLMService {
 	var client *openai.Client
-	
-	if cfg.LLMProvider == "openai" {
+
+	switch cfg.LLMProvider {
+	case "openai":
 		clientConfig := openai.DefaultConfig(cfg.OpenAIKey)
 		client = openai.NewClientWithConfig(clientConfig)
-	} else if cfg.LLMProvider == "groq" {
+	case "groq":
 		clientConfig := openai.DefaultConfig(cfg.GroqKey)
 		clientConfig.BaseURL = cfg.LLMBaseURL
 		client = openai.NewClientWithConfig(clientConfig)
-	} else {
+	default:
 		log.Fatalf("Invalid LLM provider: %s", cfg.LLMProvider)
 	}
-	
+
 	return &LLMService{
 		client: client,
 		cfg:    cfg,
@@ -60,12 +61,12 @@ func (s *LLMService) ParseIntent(query string) models.IntentResponse {
 		// Fallback to search intent
 		return models.IntentResponse{
 			Intent:   models.IntentSearch,
-			Entities: map[string]string{"query": query},
+			Entities: models.Entities{"query": query},
 		}
 	}
 
 	content := strings.TrimSpace(resp.Choices[0].Message.Content)
-	
+
 	// Clean up markdown code blocks if present
 	content = strings.TrimPrefix(content, "```json")
 	content = strings.TrimPrefix(content, "```")
@@ -78,7 +79,7 @@ func (s *LLMService) ParseIntent(query string) models.IntentResponse {
 		// Fallback
 		return models.IntentResponse{
 			Intent:   models.IntentSearch,
-			Entities: map[string]string{"query": query},
+			Entities: models.Entities{"query": query},
 		}
 	}
 
@@ -98,7 +99,7 @@ func (s *LLMService) ParseIntent(query string) models.IntentResponse {
 
 	// Ensure entities map exists
 	if intentResp.Entities == nil {
-		intentResp.Entities = make(map[string]string)
+		intentResp.Entities = make(models.Entities)
 	}
 
 	// Add query to entities if not present
@@ -144,10 +145,10 @@ func (s *LLMService) GenerateSummary(articleID, text string) string {
 	}
 
 	summary := strings.TrimSpace(resp.Choices[0].Message.Content)
-	
+
 	// Cache the summary
 	s.summaryCache.Store(articleID, summary)
-	
+
 	return summary
 }
 

@@ -5,31 +5,6 @@ import (
 	"testing"
 )
 
-func TestIsGenericQuery(t *testing.T) {
-	tests := []struct {
-		query    string
-		expected bool
-	}{
-		{"latest news", true},
-		{"news", true},
-		{"breaking news", true},
-		{"today's news", true},
-		{"climate change", false},
-		{"technology updates", false},
-		{"", false},
-		{"Latest News", false}, // Case sensitive
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.query, func(t *testing.T) {
-			result := IsGenericQuery(tt.query)
-			if result != tt.expected {
-				t.Errorf("IsGenericQuery(%q) = %v, expected %v", tt.query, result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestComputeTrendingScore(t *testing.T) {
 	tests := []struct {
 		name          string

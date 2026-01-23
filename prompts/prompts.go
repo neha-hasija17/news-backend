@@ -1,14 +1,13 @@
 package prompts
 
-// IntentParsingPrompt is the system prompt for intent classification and named entity extraction
-const IntentParsingPrompt = `You are an intent classification and named entity extraction system for a news retrieval API. 
+// IntentParsingPrompt is the system prompt for intent classification and entity extraction
+const IntentParsingPrompt = `You are an intent classification and entity extraction system for a news retrieval API. 
 Analyze the user's query and return ONLY a valid JSON object with no additional text.
 
 Rules:
 1. Determine the primary intent from: "category", "source", "search", "nearby", "score"
-2. Extract generic entities as key-value pairs in "entities" field
-3. Extract specific named entities in "named_entities" field with arrays for: people, organizations, locations, events
-4. Return only the JSON, no markdown, no explanations
+2. Extract relevant entities (people, organizations, locations, events, query terms, etc.)
+3. Return only the JSON, no markdown, no explanations
 
 Intent definitions:
 - "category": User wants news from specific category (Technology, Business, Sports, etc.)
@@ -17,21 +16,15 @@ Intent definitions:
 - "score": User wants highly relevant/trending news
 - "search": Default for general queries or specific topic search
 
-Named Entity Types:
-- people: Person names ("Elon Musk", "Joe Biden", "Taylor Swift")
-- organizations: Companies, institutions ("Twitter", "Tesla", "United Nations", "Microsoft")
-- locations: Cities, countries, places ("Palo Alto", "New York", "Europe", "Silicon Valley")
-- events: Specific events, happenings ("acquisition", "election", "summit", "launch")
-
 Example 1:
 Query: "Latest developments in the Elon Musk Twitter acquisition near Palo Alto"
 Output: {
   "intent": "nearby",
-  "entities": {"query": "Elon Musk Twitter acquisition", "location": "Palo Alto"},
-  "named_entities": {
+  "entities": {
+    "query": "Elon Musk Twitter acquisition",
+    "location": "Palo Alto",
     "people": ["Elon Musk"],
     "organizations": ["Twitter"],
-    "locations": ["Palo Alto"],
     "events": ["acquisition"]
   }
 }
@@ -40,8 +33,8 @@ Example 2:
 Query: "Apple and Microsoft earnings reports"
 Output: {
   "intent": "search",
-  "entities": {"query": "Apple Microsoft earnings reports"},
-  "named_entities": {
+  "entities": {
+    "query": "Apple Microsoft earnings reports",
     "organizations": ["Apple", "Microsoft"],
     "events": ["earnings reports"]
   }
@@ -51,21 +44,14 @@ Example 3:
 Query: "Sports news"
 Output: {
   "intent": "category",
-  "entities": {"category": "Sports"},
-  "named_entities": {}
+  "entities": {"category": "Sports"}
 }
 
 Example 4:
-Query: "Joe Biden speech at United Nations climate summit in New York"
+Query: "News from Reuters"
 Output: {
-  "intent": "search",
-  "entities": {"query": "Joe Biden United Nations climate summit"},
-  "named_entities": {
-    "people": ["Joe Biden"],
-    "organizations": ["United Nations"],
-    "locations": ["New York"],
-    "events": ["climate summit", "speech"]
-  }
+  "intent": "source",
+  "entities": {"source": "Reuters"}
 }
 
 Return ONLY the JSON object.`

@@ -77,9 +77,6 @@ func main() {
 			news.GET("/nearby", newsHandler.GetNearby)
 			news.GET("/search", newsHandler.Search)
 
-			// Individual article
-			news.GET("/article/:id", newsHandler.GetArticleByID)
-
 			// Statistics
 			news.GET("/stats", newsHandler.GetStats)
 		}
@@ -109,10 +106,10 @@ func main() {
 			"status":  "running",
 			"endpoints": gin.H{
 				"health":   "/api/v1/health",
-				"category": "/api/v1/news/category?category=<category>",
-				"source":   "/api/v1/news/source?source=<source>",
-				"score":    "/api/v1/news/score",
-				"nearby":   "/api/v1/news/nearby?lat=<lat>&lon=<lon>&radius=<km>",
+				"category": "/api/v1/news/category?query=<query>",
+				"source":   "/api/v1/news/source?query=<query>",
+				"score":    "/api/v1/news/score?query=<query>",
+				"nearby":   "/api/v1/news/nearby?lat=<lat>&lon=<lon>&radius=<km>&query=<query>",
 				"search":   "/api/v1/news/search?query=<query>",
 				"trending": "/api/v1/trending?lat=<lat>&lon=<lon>&radius=<km>&limit=<n>",
 			},

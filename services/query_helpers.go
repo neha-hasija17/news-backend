@@ -21,8 +21,8 @@ func (s *NewsService) fetchByField(query *gorm.DB, field, value string) ([]model
 }
 
 // fetchByCategory fetches articles by category
-func (s *NewsService) fetchByCategory(query *gorm.DB, entities map[string]string) ([]models.Article, error) {
-	category := entities["category"]
+func (s *NewsService) fetchByCategory(query *gorm.DB, entities models.Entities) ([]models.Article, error) {
+	category, _ := entities["category"].(string)
 	if category == "" {
 		return s.fetchLatestArticles(query)
 	}
@@ -30,11 +30,12 @@ func (s *NewsService) fetchByCategory(query *gorm.DB, entities map[string]string
 }
 
 // fetchBySource fetches articles by source name
-func (s *NewsService) fetchBySource(query *gorm.DB, entities map[string]string) ([]models.Article, error) {
-	source := entities["source_name"]
+func (s *NewsService) fetchBySource(query *gorm.DB, entities models.Entities) ([]models.Article, error) {
+	source, _ := entities["source"].(string)
 	if source == "" {
 		return s.fetchLatestArticles(query)
 	}
+	// Map API parameter 'source' to DB column 'source_name'
 	return s.fetchByField(query, "source_name", source)
 }
 
@@ -46,12 +47,12 @@ func (s *NewsService) fetchByScore(query *gorm.DB) ([]models.Article, error) {
 }
 
 // fetchNearby fetches articles near a geographic location
-func (s *NewsService) fetchNearby(lat, lon, radius float64, entities map[string]string) ([]models.Article, error) {
+func (s *NewsService) fetchNearby(lat, lon, radius float64, entities models.Entities) ([]models.Article, error) {
 	var articles []models.Article
 	query := s.db.Model(&models.Article{})
 
 	// Apply text search if query provided
-	if queryText := entities["query"]; queryText != "" {
+	if queryText, ok := entities["query"].(string); ok && queryText != "" {
 		query = s.applyTextSearch(query, queryText)
 	}
 
@@ -61,14 +62,14 @@ func (s *NewsService) fetchNearby(lat, lon, radius float64, entities map[string]
 	}
 
 	// Filter by distance using generic helper
-	filtered := utils.FilterByDistance[models.Article](articles, lat, lon, radius)
+	filtered := utils.FilterByDistance(articles, lat, lon, radius)
 
 	return filtered, nil
 }
 
 // fetchBySearch performs text search across title and description
-func (s *NewsService) fetchBySearch(query *gorm.DB, entities map[string]string) ([]models.Article, error) {
-	searchQuery := entities["query"]
+func (s *NewsService) fetchBySearch(query *gorm.DB, entities models.Entities) ([]models.Article, error) {
+	searchQuery, _ := entities["query"].(string)
 	if searchQuery == "" {
 		return s.fetchLatestArticles(query)
 	}

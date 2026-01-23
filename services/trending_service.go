@@ -97,14 +97,22 @@ func (s *TrendingService) GetTrendingNewsWithSummaries(lat, lon, radius float64,
 		return nil, nil, err
 	}
 
-	// Enrich with summaries (only if summaries missing)
+	// Convert TrendingArticle to Article for batch processing
+	articles := make([]models.Article, len(trendingArticles))
 	for i := range trendingArticles {
-		if trendingArticles[i].LLMSummary == "" {
-			trendingArticles[i].LLMSummary = s.llmService.GenerateSummary(
-				trendingArticles[i].ID,
-				trendingArticles[i].Description,
-			)
+		articles[i] = models.Article{
+			ID:          trendingArticles[i].ID,
+			Description: trendingArticles[i].Description,
+			LLMSummary:  trendingArticles[i].LLMSummary,
 		}
+	}
+
+	// Batch generate summaries
+	s.llmService.GenerateSummariesBatch(articles)
+
+	// Copy summaries back to trending articles
+	for i := range trendingArticles {
+		trendingArticles[i].LLMSummary = articles[i].LLMSummary
 	}
 
 	return trendingArticles, cache, nil

@@ -1,19 +1,18 @@
 # News Backend - Contextual News Data Retrieval System
 
-A backend system for contextual news retrieval with LLM-powered intent parsing, **named entity extraction**, geospatial search, and trending news functionality.
+A backend system for contextual news retrieval with **LLM-powered intent parsing and entity extraction** across ALL endpoints, geospatial search, and trending news functionality.
 
 ## 🚀 Features
 
-- **Multiple Retrieval Strategies**: Category, source, score-based, nearby, and full-text search
-- **LLM-Powered Named Entity Extraction**: Extracts people, organizations, locations, and events from queries
-- **LLM-Powered Summarization**: Uses Groq/OpenAI to generate concise article summaries
-- **Enhanced Search Relevance**: Entity-based matching for improved article ranking
-- **Geospatial Search**: Find news articles near any location using Haversine distance
-- **Trending News**: Location-based trending articles with user engagement tracking
-- **Smart Caching**: Optimized performance with geospatial cache segmentation
-- **RESTful API**: Clean, versioned API endpoints with comprehensive error handling
-- **Production Ready**: Proper logging, middleware, and error handling
-- **Clean Architecture**: Service layer handles all business logic, handlers focus on HTTP
+- **🤖 LLM-Powered Everything**: All endpoints use LLM for intent parsing and entity extraction
+- **📍 Geospatial Search**: Find news articles near any location using Haversine distance
+- **📊 Trending News**: Location-based trending articles with user engagement tracking
+- **🎯 Multiple Retrieval Strategies**: Category, source, score-based, nearby, and full-text search
+- **✨ Entity-Based Matching**: Extracts people, organizations, locations, and events from queries
+- **📝 AI Summarization**: Groq/OpenAI-powered article summaries with parallel batch processing
+- **⚡ Smart Caching**: Optimized performance with geospatial cache segmentation
+- **🔌 RESTful API**: Clean, versioned API endpoints with comprehensive error handling
+- **🏗️ Clean Architecture**: Service layer handles all business logic, handlers focus on HTTP
 
 ## 🏗️ Architecture
 
@@ -23,7 +22,7 @@ This project follows a **layered architecture** with clear separation of concern
 - **Services** (Business logic): LLM operations, data processing, caching
 - **Database** (Data layer): GORM-based SQLite persistence
 
-All LLM operations (intent parsing, summarization) are encapsulated in the service layer, keeping handlers thin and focused on HTTP concerns. See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
+**Key Design Decision**: ALL endpoints now use LLM for intent and entity extraction, not just search. This provides consistent natural language query support across the entire API surface. See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 
 ## 📋 Prerequisites
 
@@ -104,72 +103,117 @@ http://localhost:8080/api/v1
 GET /api/v1/health
 ```
 
-### News Endpoints
-
-#### 1. Category-Based Search
+#### 1. Category-Based Search (LLM-Powered)
 ```bash
-GET /api/v1/news/category?category=<category>
+GET /api/v1/news/category?query=<natural_language_query>
 
-# Example:
-curl "http://localhost:8080/api/v1/news/category?category=Technology"
+# Examples:
+curl "http://localhost:8080/api/v1/news/category?query=Technology+news"
+curl "http://localhost:8080/api/v1/news/category?query=Show+me+sports+articles"
 ```
 
-#### 2. Source-Based Search
-```bash
-GET /api/v1/news/source?source=<source_name>
-
-# Example:
-curl "http://localhost:8080/api/v1/news/source?source=Reuters"
+**Response includes extracted entities:**
+```json
+{
+  "intent": "category",
+  "entities": {
+    "category": "Technology"
+  },
+  "articles": [...],
+  "count": 10
+}
 ```
 
-#### 3. High-Relevance Articles
+#### 2. Source-Based Search (LLM-Powered)
 ```bash
-GET /api/v1/news/score
+GET /api/v1/news/source?query=<natural_language_query>
 
-# Example:
-curl "http://localhost:8080/api/v1/news/score"
+# Examples:
+curl "http://localhost:8080/api/v1/news/source?query=Reuters+news"
+curl "http://localhost:8080/api/v1/news/source?query=Show+me+BBC+articles"
 ```
 
-#### 4. Nearby Articles (Geospatial)
-```bash
-GET /api/v1/news/nearby?lat=<latitude>&lon=<longitude>&radius=<km>
-
-# Example:
-curl "http://localhost:8080/api/v1/news/nearby?lat=37.4220&lon=-122.0840&radius=10"
+**Response includes extracted entities:**
+```json
+{
+  "intent": "source",
+  "entities": {
+    "source": "Reuters"
+  },
+  "articles": [...],
+  "count": 8
+}
 ```
 
-#### 5. Text Search
+#### 3. High-Relevance Articles (LLM-Powered)
+```bash
+GET /api/v1/news/score?query=<natural_language_query>
+
+# Examples:
+curl "http://localhost:8080/api/v1/news/score?query=top+trending+news"
+curl "http://localhost:8080/api/v1/news/score"  # Uses default query
+```
+
+#### 4. Nearby Articles (LLM-Powered Geospatial)
+```bash
+GET /api/v1/news/nearby?lat=<latitude>&lon=<longitude>&radius=<km>&query=<query>
+
+# Examples:
+curl "http://localhost:8080/api/v1/news/nearby?lat=37.4220&lon=-122.0840&radius=10&query=local+news"
+curl "http://localhost:8080/api/v1/news/nearby?lat=37.4220&lon=-122.0840&radius=10&query=what's+happening+nearby"
+```
+
+**Response includes location and extracted entities:**
+```json
+{
+  "intent": "nearby",
+  "entities": {
+    "location": "nearby",
+    "lat": 37.4220,
+    "lon": -122.0840,
+    "radius": 10
+  },
+  "articles": [...],
+  "location": {
+    "lat": 37.4220,
+    "lon": -122.0840,
+    "radius": 10
+  }
+}
+```
+
+#### 5. Text Search (LLM-Powered)
 ```bash
 GET /api/v1/news/search?query=<search_term>
 
-# Example:
+# Examples:
 curl "http://localhost:8080/api/v1/news/search?query=climate+change"
-
-# Example with named entities:
 curl "http://localhost:8080/api/v1/news/search?query=Elon+Musk+Twitter+acquisition"
+curl "http://localhost:8080/api/v1/news/search?query=What+did+Biden+say+about+China"
 ```
 
-**Named Entity Extraction**: The search endpoint uses LLM to extract named entities from queries:
+**Entity Extraction**: LLM automatically extracts structured entities from natural language:
 - **People**: Person names (e.g., "Elon Musk", "Joe Biden")
 - **Organizations**: Companies, institutions (e.g., "Twitter", "United Nations")
-- **Locations**: Cities, countries (e.g., "Palo Alto", "New York")
+- **Locations**: Cities, countries (e.g., "Palo Alto", "China")
 - **Events**: Specific happenings (e.g., "acquisition", "summit")
 
-Response includes extracted entities:
+**Response includes extracted entities:**
 ```json
 {
-  "query": "Elon Musk Twitter acquisition",
-  "named_entities": {
+  "intent": "search",
+  "entities": {
     "people": ["Elon Musk"],
     "organizations": ["Twitter"],
-    "events": ["acquisition"]
+    "events": ["acquisition"],
+    "query": "Elon Musk Twitter acquisition"
   },
   "articles": [...],
   "count": 5
 }
 ```
 
-Articles are ranked using entity matching (40% weight) combined with traditional search relevance (60% weight).
+Articles are ranked using **entity matching (40% weight)** combined with **traditional search relevance (60% weight)**.
 
 #### 6. Get Article by ID
 ```bash
